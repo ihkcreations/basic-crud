@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Task Manager - Full-Stack CRUD Application
 
-## Getting Started
+A modern, feature-rich task management application built with Next.js 15, MongoDB, Prisma, and shadcn/ui. Manage your tasks efficiently with tags, filters, search, and more!
 
-First, run the development server:
+## 🌐 Live Demo
+
+**Production URL:** [https://basic-crud-rho.vercel.app](https://basic-crud-rho.vercel.app)
+
+## ✨ Features
+
+### Core Functionality
+- ✅ **Complete CRUD Operations** - Create, Read, Update, Delete tasks
+- 🔐 **Authentication** - Secure user registration and login with Better Auth
+- 👤 **User Profiles** - Customizable profiles with avatar upload
+- 📝 **Rich Task Details** - Title, description, status, and due dates
+
+### Advanced Features
+- 🏷️ **Tag System** - Create custom tags with 8 color options
+- 📅 **Due Date Management** - Calendar picker with smart due date indicators
+- 🔍 **Powerful Search** - Search by title, description, or creator
+- 🎯 **Multi-Filter System** - Filter by status, tags, and ownership
+- 🔄 **Flexible Sorting** - 7 different sorting options
+- ☑️ **Bulk Actions** - Select and manage multiple tasks at once
+- 🌓 **Dark Mode** - Beautiful dark theme with persistence
+- 📱 **Responsive Design** - Optimized for mobile, tablet, and desktop
+
+### User Experience
+- ⚡ **Real-time Updates** - Instant UI feedback
+- 🎨 **Modern UI** - Clean design with shadcn/ui components
+- 🔔 **Toast Notifications** - Success and error messages with Sonner
+- 🎭 **Smooth Animations** - Polished interactions
+- ♿ **Accessible** - Keyboard navigation and screen reader support
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework:** [Next.js 16](https://nextjs.org/) (App Router)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components:** [shadcn/ui](https://ui.shadcn.com/)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **Notifications:** [Sonner](https://sonner.emilkowal.ski/)
+
+### Backend
+- **Runtime:** [Node.js](https://nodejs.org/)
+- **API:** Next.js API Routes
+- **Authentication:** [Better Auth](https://www.better-auth.com/)
+- **Database:** [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+- **ORM:** [Prisma](https://www.prisma.io/)
+
+### Cloud Services
+- **Hosting:** [Vercel](https://vercel.com/)
+- **Database:** [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+- **File Storage:** [Uploadthing](https://uploadthing.com/)
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** 18.17 or later - [Download](https://nodejs.org/)
+- **npm** or **yarn** package manager
+- **Git** - [Download](https://git-scm.com/)
+- **MongoDB** (Local) or **MongoDB Atlas** account (Cloud)
+
+## 🚀 Getting Started
+
+### 1. Clone the Repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/ihkcreations/basic-crud.git
+cd basic-crud
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
