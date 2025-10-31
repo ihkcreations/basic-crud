@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { signOut, useSession } from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
-import { LogOut, UserCircle } from 'lucide-react'
+import { LogOut, UserCircle, Tags } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from './theme-toggle'
 import { UserAvatar } from './user-avatar'
 import { ProfileDialog } from './profile-dialog'
+import { TagManager } from './tag-manager'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ export function Navbar() {
   const { data: session } = useSession()
   const router = useRouter()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [tagManagerOpen, setTagManagerOpen] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
@@ -89,6 +91,10 @@ export function Navbar() {
                   <UserCircle className="mr-2 h-4 w-4" />
                   Edit Profile
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTagManagerOpen(true)}>
+                  <Tags className="mr-2 h-4 w-4" />
+                  Manage Tags
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -104,6 +110,14 @@ export function Navbar() {
         open={profileOpen} 
         onOpenChange={setProfileOpen}
         onProfileUpdate={fetchProfile}
+      />
+
+      <TagManager
+        open={tagManagerOpen}
+        onOpenChange={setTagManagerOpen}
+        onTagsUpdate={() => {
+          // Trigger refresh if needed
+        }}
       />
     </>
   )

@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { TagSelector } from './tag-selector'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -36,6 +37,7 @@ interface Task {
   description: string | null
   status: string
   dueDate: string | null
+  tagIds: string[]
 }
 
 interface TaskFormProps {
@@ -50,6 +52,7 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState('pending')
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
+  const [tagIds, setTagIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
   // Update form when task changes or dialog opens
@@ -59,6 +62,7 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
       setDescription(task.description || '')
       setStatus(task.status)
       setDueDate(task.dueDate ? new Date(task.dueDate) : undefined)
+      setTagIds(task.tagIds || [])
     } else if (open && !task) {
       resetForm()
     }
@@ -79,7 +83,8 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
           title, 
           description, 
           status,
-          dueDate: dueDate?.toISOString() 
+          dueDate: dueDate?.toISOString(),
+          tagIds
         })
       })
 
@@ -105,11 +110,12 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
     setDescription('')
     setStatus('pending')
     setDueDate(undefined)
+    setTagIds([])
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{task ? 'Edit Task' : 'Create New Task'}</DialogTitle>
@@ -185,6 +191,13 @@ export function TaskForm({ open, onOpenChange, task, onSuccess }: TaskFormProps)
                   )}
                 </PopoverContent>
               </Popover>
+            </div>
+            <div className="grid gap-2">
+              <Label>Tags (Optional)</Label>
+              <TagSelector 
+                selectedTagIds={tagIds}
+                onTagsChange={setTagIds}
+              />
             </div>
           </div>
           <DialogFooter>

@@ -1,14 +1,20 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useSession } from '@/lib/auth-client'
-import { useRouter } from 'next/navigation'
-import { format, isToday, isPast, isFuture, differenceInDays } from 'date-fns'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { useEffect, useState } from "react";
+import { useSession } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { format, isToday, isPast, isFuture, differenceInDays } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,281 +22,534 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { TaskForm } from './task-form'
-import { 
-  Pencil, 
-  Trash2, 
-  Plus, 
-  User, 
-  Filter, 
-  Search, 
-  X, 
-  Calendar, 
+} from "@/components/ui/dropdown-menu";
+import { TaskForm } from "./task-form";
+import {
+  Pencil,
+  Trash2,
+  Plus,
+  User,
+  Filter,
+  Search,
+  X,
+  Calendar,
   AlertCircle,
   ArrowUpDown,
-  Check
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { UserAvatar } from './user-avatar'
+  Check,
+} from "lucide-react";
+import { toast } from "sonner";
+import { UserAvatar } from "./user-avatar";
+import { TagBadge } from "./tag-badge";
+import { Tags } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface Task {
-  id: string
-  title: string
-  description: string | null
-  status: string
-  dueDate: string | null
-  createdAt: string
-  updatedAt: string
-  userId: string
-  user: {
-    id: string
-    name: string
-    email: string
-    avatar: string | null  // Add this line
-  }
+import { Checkbox } from "@/components/ui/checkbox";
+import { CheckSquare } from "lucide-react";
+import { BulkActionsToolbar } from "./bulk-actions-toolbar";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+
+interface Tag {
+  id: string;
+  name: string;
+  color: string;
 }
 
-type FilterStatus = 'all' | 'pending' | 'in-progress' | 'completed'
-type SortOption = 'created-desc' | 'created-asc' | 'due-date-asc' | 'due-date-desc' | 'title-asc' | 'title-desc' | 'status'
+interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  tagIds: string[];
+  tags: Tag[];
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+  };
+}
+
+type FilterStatus = "all" | "pending" | "in-progress" | "completed";
+type SortOption =
+  | "created-desc"
+  | "created-asc"
+  | "due-date-asc"
+  | "due-date-desc"
+  | "title-asc"
+  | "title-desc"
+  | "status";
 
 export function TaskList() {
-  const { data: session, isPending } = useSession()
-  const router = useRouter()
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortOption, setSortOption] = useState<SortOption>('created-desc')
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("created-desc");
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [showOnlyMyTasks, setShowOnlyMyTasks] = useState(false);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
 
   useEffect(() => {
     if (!isPending && !session) {
-      router.push('/login')
+      router.push("/login");
     }
-  }, [session, isPending, router])
+  }, [session, isPending, router]);
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch('/api/tasks')
-      const data = await response.json()
-      setTasks(data)
+      const response = await fetch("/api/tasks");
+      const data = await response.json();
+      setTasks(data);
     } catch (error) {
-      console.error('Error fetching tasks:', error)
-      toast.error('Failed to fetch tasks')
+      console.error("Error fetching tasks:", error);
+      toast.error("Failed to fetch tasks");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (session) {
-      fetchTasks()
+      fetchTags();
     }
-  }, [session])
+  }, [session]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return
+  const toggleTaskSelection = (taskId: string) => {
+    if (selectedTasks.includes(taskId)) {
+      setSelectedTasks(selectedTasks.filter((id) => id !== taskId));
+    } else {
+      setSelectedTasks([...selectedTasks, taskId]);
+    }
+  };
 
+  const toggleSelectAll = () => {
+    const selectableTasks = sortedTasks.filter((task) => isOwner(task));
+    if (selectedTasks.length === selectableTasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(selectableTasks.map((task) => task.id));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedTasks([]);
+    setBulkMode(false);
+  };
+
+  const handleBulkDelete = async () => {
     try {
-      const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
-      
+      const response = await fetch("/api/tasks/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds: selectedTasks }),
+      });
+
       if (response.ok) {
-        toast.success('Task deleted successfully!')
-        fetchTasks()
+        clearSelection();
+        fetchTasks();
       } else {
-        const data = await response.json()
-        toast.error(data.error || 'Failed to delete task')
+        throw new Error("Failed to delete tasks");
       }
     } catch (error) {
-      console.error('Error deleting task:', error)
-      toast.error('Failed to delete task')
+      console.error("Error deleting tasks:", error);
+      throw error;
     }
-  }
+  };
+
+  const handleBulkStatusChange = async (status: string) => {
+    try {
+      const response = await fetch("/api/tasks/bulk", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskIds: selectedTasks,
+          updates: { status },
+        }),
+      });
+
+      if (response.ok) {
+        clearSelection();
+        fetchTasks();
+      } else {
+        throw new Error("Failed to update tasks");
+      }
+    } catch (error) {
+      console.error("Error updating tasks:", error);
+      throw error;
+    }
+  };
+
+  const handleBulkTagsAdd = async (tagIds: string[]) => {
+    try {
+      const response = await fetch("/api/tasks/bulk", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskIds: selectedTasks,
+          updates: { addTagIds: tagIds },
+        }),
+      });
+
+      if (response.ok) {
+        clearSelection();
+        fetchTasks();
+      } else {
+        throw new Error("Failed to add tags");
+      }
+    } catch (error) {
+      console.error("Error adding tags:", error);
+      throw error;
+    }
+  };
+
+  const fetchTags = async () => {
+    try {
+      const response = await fetch("/api/tags");
+      if (response.ok) {
+        const data = await response.json();
+        setAllTags(data);
+      }
+    } catch (error) {
+      console.error("Error fetching tags:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      fetchTasks();
+    }
+  }, [session]);
+
+  const handleDelete = async (id: string) => {
+    setTaskToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!taskToDelete) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/tasks/${taskToDelete}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        toast.success("Task deleted successfully!");
+        fetchTasks();
+        setDeleteDialogOpen(false);
+        setTaskToDelete(null);
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Failed to delete task");
+      }
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleEdit = (task: Task) => {
-    setEditingTask(task)
-    setDialogOpen(true)
-  }
+    setEditingTask(task);
+    setDialogOpen(true);
+  };
 
   const handleDialogClose = (open: boolean) => {
-    setDialogOpen(open)
+    setDialogOpen(open);
     if (!open) {
-      setEditingTask(null)
+      setEditingTask(null);
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-500 dark:bg-green-600'
-      case 'in-progress':
-        return 'bg-blue-500 dark:bg-blue-600'
+      case "completed":
+        return "bg-green-500 dark:bg-green-600";
+      case "in-progress":
+        return "bg-blue-500 dark:bg-blue-600";
       default:
-        return 'bg-yellow-500 dark:bg-yellow-600'
+        return "bg-yellow-500 dark:bg-yellow-600";
     }
-  }
+  };
 
   const getDueDateInfo = (dueDate: string | null, status: string) => {
-    if (!dueDate || status === 'completed') return null
+    if (!dueDate || status === "completed") return null;
 
-    const due = new Date(dueDate)
-    const now = new Date()
+    const due = new Date(dueDate);
+    const now = new Date();
 
     if (isPast(due) && !isToday(due)) {
-      const daysOverdue = Math.abs(differenceInDays(now, due))
+      const daysOverdue = Math.abs(differenceInDays(now, due));
       return {
-        label: `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue`,
-        color: 'bg-red-500 text-white dark:bg-red-600',
-        icon: true
-      }
+        label: `${daysOverdue} day${daysOverdue > 1 ? "s" : ""} overdue`,
+        color: "bg-red-500 text-white dark:bg-red-600",
+        icon: true,
+      };
     }
 
     if (isToday(due)) {
       return {
-        label: 'Due today',
-        color: 'bg-orange-500 text-white dark:bg-orange-600',
-        icon: true
-      }
+        label: "Due today",
+        color: "bg-orange-500 text-white dark:bg-orange-600",
+        icon: true,
+      };
     }
 
     if (isFuture(due)) {
-      const daysLeft = differenceInDays(due, now)
+      const daysLeft = differenceInDays(due, now);
       if (daysLeft <= 3) {
         return {
-          label: `Due in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`,
-          color: 'bg-yellow-500 text-white dark:bg-yellow-600',
-          icon: false
-        }
+          label: `Due in ${daysLeft} day${daysLeft > 1 ? "s" : ""}`,
+          color: "bg-yellow-500 text-white dark:bg-yellow-600",
+          icon: false,
+        };
       }
       return {
-        label: format(due, 'MMM dd, yyyy'),
-        color: 'bg-gray-500 text-white dark:bg-gray-600',
-        icon: false
-      }
+        label: format(due, "MMM dd, yyyy"),
+        color: "bg-gray-500 text-white dark:bg-gray-600",
+        icon: false,
+      };
     }
 
-    return null
-  }
+    return null;
+  };
 
   const isOwner = (task: Task) => {
-    return session?.user?.id === task.userId
-  }
+    return session?.user?.id === task.userId;
+  };
 
   // Sort tasks
   const sortTasks = (tasksToSort: Task[]) => {
-    const sorted = [...tasksToSort]
+    const sorted = [...tasksToSort];
 
     switch (sortOption) {
-      case 'created-desc':
-        return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      
-      case 'created-asc':
-        return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      
-      case 'due-date-asc':
+      case "created-desc":
+        return sorted.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+      case "created-asc":
+        return sorted.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+
+      case "due-date-asc":
         return sorted.sort((a, b) => {
-          if (!a.dueDate && !b.dueDate) return 0
-          if (!a.dueDate) return 1
-          if (!b.dueDate) return -1
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-        })
-      
-      case 'due-date-desc':
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+
+      case "due-date-desc":
         return sorted.sort((a, b) => {
-          if (!a.dueDate && !b.dueDate) return 0
-          if (!a.dueDate) return 1
-          if (!b.dueDate) return -1
-          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-        })
-      
-      case 'title-asc':
-        return sorted.sort((a, b) => a.title.localeCompare(b.title))
-      
-      case 'title-desc':
-        return sorted.sort((a, b) => b.title.localeCompare(a.title))
-      
-      case 'status':
-        const statusOrder = { 'pending': 1, 'in-progress': 2, 'completed': 3 }
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+        });
+
+      case "title-asc":
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+
+      case "title-desc":
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+
+      case "status":
+        const statusOrder = { pending: 1, "in-progress": 2, completed: 3 };
         return sorted.sort((a, b) => {
-          const aOrder = statusOrder[a.status as keyof typeof statusOrder] || 4
-          const bOrder = statusOrder[b.status as keyof typeof statusOrder] || 4
-          return aOrder - bOrder
-        })
-      
+          const aOrder = statusOrder[a.status as keyof typeof statusOrder] || 4;
+          const bOrder = statusOrder[b.status as keyof typeof statusOrder] || 4;
+          return aOrder - bOrder;
+        });
+
       default:
-        return sorted
+        return sorted;
     }
-  }
+  };
 
   // Filter and search tasks
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = tasks.filter((task) => {
+    // Filter by ownership
+    const ownershipMatch = !showOnlyMyTasks || isOwner(task);
+
     // Filter by status
-    const statusMatch = filterStatus === 'all' || task.status === filterStatus
-    
+    const statusMatch = filterStatus === "all" || task.status === filterStatus;
+
     // Filter by search query
-    const searchLower = searchQuery.toLowerCase().trim()
-    const searchMatch = searchQuery === '' || 
+    const searchLower = searchQuery.toLowerCase().trim();
+    const searchMatch =
+      searchQuery === "" ||
       task.title.toLowerCase().includes(searchLower) ||
       (task.description?.toLowerCase().includes(searchLower) ?? false) ||
-      task.user.name.toLowerCase().includes(searchLower)
-    
-    return statusMatch && searchMatch
-  })
+      task.user.name.toLowerCase().includes(searchLower);
+
+    // Filter by tags
+    const tagMatch =
+      selectedTagFilter.length === 0 ||
+      selectedTagFilter.some((tagId) => task.tagIds.includes(tagId));
+
+    return ownershipMatch && statusMatch && searchMatch && tagMatch;
+  });
 
   // Apply sorting
-  const sortedTasks = sortTasks(filteredTasks)
+  const sortedTasks = sortTasks(filteredTasks);
 
   // Count tasks by status
   const taskCounts = {
     all: tasks.length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    'in-progress': tasks.filter(t => t.status === 'in-progress').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-  }
+    pending: tasks.filter((t) => t.status === "pending").length,
+    "in-progress": tasks.filter((t) => t.status === "in-progress").length,
+    completed: tasks.filter((t) => t.status === "completed").length,
+  };
 
   const clearSearch = () => {
-    setSearchQuery('')
-  }
+    setSearchQuery("");
+  };
 
   const clearAllFilters = () => {
-    setSearchQuery('')
-    setFilterStatus('all')
-    setSortOption('created-desc')
-  }
+    setSearchQuery("");
+    setFilterStatus("all");
+    setSortOption("created-desc");
+    setSelectedTagFilter([]);
+    setShowOnlyMyTasks(false);
+  };
 
-  const hasActiveFilters = searchQuery !== '' || filterStatus !== 'all' || sortOption !== 'created-desc'
+  const hasActiveFilters =
+    searchQuery !== "" ||
+    filterStatus !== "all" ||
+    sortOption !== "created-desc" ||
+    selectedTagFilter.length > 0 ||
+    showOnlyMyTasks;
 
   const getSortLabel = (option: SortOption) => {
     switch (option) {
-      case 'created-desc': return 'Newest First'
-      case 'created-asc': return 'Oldest First'
-      case 'due-date-asc': return 'Due Date (Earliest)'
-      case 'due-date-desc': return 'Due Date (Latest)'
-      case 'title-asc': return 'Title (A-Z)'
-      case 'title-desc': return 'Title (Z-A)'
-      case 'status': return 'Status'
-      default: return 'Sort'
+      case "created-desc":
+        return "Newest First";
+      case "created-asc":
+        return "Oldest First";
+      case "due-date-asc":
+        return "Due Date (Earliest)";
+      case "due-date-desc":
+        return "Due Date (Latest)";
+      case "title-asc":
+        return "Title (A-Z)";
+      case "title-desc":
+        return "Title (Z-A)";
+      case "status":
+        return "Status";
+      default:
+        return "Sort";
     }
-  }
+  };
 
   if (isPending || loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return <div className="text-center py-8">Loading...</div>;
   }
 
   if (!session) {
-    return null
+    return null;
   }
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold">Task Manager</h1>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> New Task
-        </Button>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">Task Manager</h1>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="my-tasks-only"
+              checked={showOnlyMyTasks}
+              onCheckedChange={(checked) =>
+                setShowOnlyMyTasks(checked as boolean)
+              }
+            />
+            <label
+              htmlFor="my-tasks-only"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              My Tasks Only
+            </label>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={bulkMode ? "secondary" : "outline"}
+            onClick={() => {
+              setBulkMode(!bulkMode);
+              if (bulkMode) {
+                clearSelection();
+              }
+            }}
+          >
+            {bulkMode ? "Cancel Selection" : "Select Tasks"}
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> New Task
+          </Button>
+        </div>
       </div>
+
+      {/* Bulk Actions Toolbar */}
+      {bulkMode && selectedTasks.length > 0 && (
+        <BulkActionsToolbar
+          selectedCount={selectedTasks.length}
+          onClearSelection={clearSelection}
+          onBulkDelete={handleBulkDelete}
+          onBulkStatusChange={handleBulkStatusChange}
+          onBulkTagsAdd={handleBulkTagsAdd}
+          availableTags={allTags}
+        />
+      )}
+
+      {/* Select All Button */}
+      {bulkMode && sortedTasks.filter((task) => isOwner(task)).length > 0 && (
+        <div className="mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSelectAll}
+            className="gap-2"
+          >
+            <CheckSquare className="h-4 w-4" />
+            {selectedTasks.length ===
+            sortedTasks.filter((task) => isOwner(task)).length
+              ? "Deselect All"
+              : `Select All (${
+                  sortedTasks.filter((task) => isOwner(task)).length
+                })`}
+          </Button>
+        </div>
+      )}
 
       {/* Search Bar and Sort */}
       <div className="mb-4 flex gap-2">
@@ -326,207 +585,378 @@ export function TaskList() {
           <DropdownMenuContent align="end" className="w-[200px]">
             <DropdownMenuLabel>Sort By</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => setSortOption('created-desc')}>
-              {sortOption === 'created-desc' && <Check className="mr-2 h-4 w-4" />}
-              {sortOption !== 'created-desc' && <span className="mr-6" />}
+
+            <DropdownMenuItem onClick={() => setSortOption("created-desc")}>
+              {sortOption === "created-desc" && (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              {sortOption !== "created-desc" && <span className="mr-6" />}
               Newest First
             </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => setSortOption('created-asc')}>
-              {sortOption === 'created-asc' && <Check className="mr-2 h-4 w-4" />}
-              {sortOption !== 'created-asc' && <span className="mr-6" />}
+
+            <DropdownMenuItem onClick={() => setSortOption("created-asc")}>
+              {sortOption === "created-asc" && (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              {sortOption !== "created-asc" && <span className="mr-6" />}
               Oldest First
             </DropdownMenuItem>
-            
+
             <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => setSortOption('due-date-asc')}>
-              {sortOption === 'due-date-asc' && <Check className="mr-2 h-4 w-4" />}
-              {sortOption !== 'due-date-asc' && <span className="mr-6" />}
+
+            <DropdownMenuItem onClick={() => setSortOption("due-date-asc")}>
+              {sortOption === "due-date-asc" && (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              {sortOption !== "due-date-asc" && <span className="mr-6" />}
               Due Date (Earliest)
             </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => setSortOption('due-date-desc')}>
-              {sortOption === 'due-date-desc' && <Check className="mr-2 h-4 w-4" />}
-              {sortOption !== 'due-date-desc' && <span className="mr-6" />}
+
+            <DropdownMenuItem onClick={() => setSortOption("due-date-desc")}>
+              {sortOption === "due-date-desc" && (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              {sortOption !== "due-date-desc" && <span className="mr-6" />}
               Due Date (Latest)
             </DropdownMenuItem>
-            
+
             <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => setSortOption('title-asc')}>
-              {sortOption === 'title-asc' && <Check className="mr-2 h-4 w-4" />}
-              {sortOption !== 'title-asc' && <span className="mr-6" />}
+
+            <DropdownMenuItem onClick={() => setSortOption("title-asc")}>
+              {sortOption === "title-asc" && <Check className="mr-2 h-4 w-4" />}
+              {sortOption !== "title-asc" && <span className="mr-6" />}
               Title (A-Z)
             </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={() => setSortOption('title-desc')}>
-              {sortOption === 'title-desc' && <Check className="mr-2 h-4 w-4" />}
-              {sortOption !== 'title-desc' && <span className="mr-6" />}
+
+            <DropdownMenuItem onClick={() => setSortOption("title-desc")}>
+              {sortOption === "title-desc" && (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              {sortOption !== "title-desc" && <span className="mr-6" />}
               Title (Z-A)
             </DropdownMenuItem>
-            
+
             <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => setSortOption('status')}>
-              {sortOption === 'status' && <Check className="mr-2 h-4 w-4" />}
-              {sortOption !== 'status' && <span className="mr-6" />}
+
+            <DropdownMenuItem onClick={() => setSortOption("status")}>
+              {sortOption === "status" && <Check className="mr-2 h-4 w-4" />}
+              {sortOption !== "status" && <span className="mr-6" />}
               Status
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      {/* Filter Section */}
-      <div className="mb-6 p-4 bg-card border rounded-lg">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filter by Status</span>
+      {/* Filter Sections - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* Status Filter Section */}
+        <div className="p-4 bg-card border rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filter by Status</span>
+            </div>
+            {filterStatus !== "all" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilterStatus("all")}
+                className="text-xs h-7"
+              >
+                Clear
+              </Button>
+            )}
           </div>
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearAllFilters}
-              className="text-xs h-7"
+
+          <ToggleGroup
+            type="single"
+            value={filterStatus}
+            onValueChange={(value) =>
+              value && setFilterStatus(value as FilterStatus)
+            }
+            className="justify-start flex-wrap"
+          >
+            <ToggleGroupItem
+              value="all"
+              aria-label="All tasks"
+              className="gap-2"
             >
-              Clear All Filters
-            </Button>
-          )}
+              All
+              <Badge variant="secondary" className="ml-1">
+                {taskCounts.all}
+              </Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="pending"
+              aria-label="Pending tasks"
+              className="gap-2"
+            >
+              Pending
+              <Badge
+                variant="secondary"
+                className="ml-1 bg-yellow-100 dark:bg-yellow-900"
+              >
+                {taskCounts.pending}
+              </Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="in-progress"
+              aria-label="In progress tasks"
+              className="gap-2"
+            >
+              In Progress
+              <Badge
+                variant="secondary"
+                className="ml-1 bg-blue-100 dark:bg-blue-900"
+              >
+                {taskCounts["in-progress"]}
+              </Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="completed"
+              aria-label="Completed tasks"
+              className="gap-2"
+            >
+              Completed
+              <Badge
+                variant="secondary"
+                className="ml-1 bg-green-100 dark:bg-green-900"
+              >
+                {taskCounts.completed}
+              </Badge>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
-        
-        <ToggleGroup
-          type="single"
-          value={filterStatus}
-          onValueChange={(value) => value && setFilterStatus(value as FilterStatus)}
-          className="justify-start flex-wrap"
-        >
-          <ToggleGroupItem value="all" aria-label="All tasks" className="gap-2">
-            All
-            <Badge variant="secondary" className="ml-1">
-              {taskCounts.all}
-            </Badge>
-          </ToggleGroupItem>
-          <ToggleGroupItem value="pending" aria-label="Pending tasks" className="gap-2">
-            Pending
-            <Badge variant="secondary" className="ml-1 bg-yellow-100 dark:bg-yellow-900">
-              {taskCounts.pending}
-            </Badge>
-          </ToggleGroupItem>
-          <ToggleGroupItem value="in-progress" aria-label="In progress tasks" className="gap-2">
-            In Progress
-            <Badge variant="secondary" className="ml-1 bg-blue-100 dark:bg-blue-900">
-              {taskCounts['in-progress']}
-            </Badge>
-          </ToggleGroupItem>
-          <ToggleGroupItem value="completed" aria-label="Completed tasks" className="gap-2">
-            Completed
-            <Badge variant="secondary" className="ml-1 bg-green-100 dark:bg-green-900">
-              {taskCounts.completed}
-            </Badge>
-          </ToggleGroupItem>
-        </ToggleGroup>
+
+        {/* Tag Filter Section */}
+        {allTags.length > 0 && (
+          <div className="p-4 bg-card border rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Tags className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter by Tags</span>
+              </div>
+              {selectedTagFilter.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedTagFilter([])}
+                  className="text-xs h-7"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {allTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => {
+                    if (selectedTagFilter.includes(tag.id)) {
+                      setSelectedTagFilter(
+                        selectedTagFilter.filter((id) => id !== tag.id)
+                      );
+                    } else {
+                      setSelectedTagFilter([...selectedTagFilter, tag.id]);
+                    }
+                  }}
+                  className={cn(
+                    "transition-opacity",
+                    selectedTagFilter.includes(tag.id)
+                      ? "opacity-100"
+                      : "opacity-50 hover:opacity-75"
+                  )}
+                >
+                  <TagBadge name={tag.name} color={tag.color} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Active Filters Display */}
       {hasActiveFilters && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-          <span>Showing {sortedTasks.length} of {tasks.length} tasks</span>
-          {searchQuery && (
-            <Badge variant="secondary" className="gap-1">
-              Search: "{searchQuery}"
-              <X 
-                className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                onClick={clearSearch}
-              />
-            </Badge>
-          )}
-          {filterStatus !== 'all' && (
-            <Badge variant="secondary" className="gap-1">
-              Status: {filterStatus}
-              <X 
-                className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                onClick={() => setFilterStatus('all')}
-              />
-            </Badge>
-          )}
-          {sortOption !== 'created-desc' && (
-            <Badge variant="secondary" className="gap-1">
-              Sort: {getSortLabel(sortOption)}
-              <X 
-                className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                onClick={() => setSortOption('created-desc')}
-              />
-            </Badge>
-          )}
+        <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+            <span>
+              Showing {sortedTasks.length} of {tasks.length} tasks
+            </span>
+            {showOnlyMyTasks && (
+              <Badge variant="secondary" className="gap-1">
+                My Tasks Only
+                <X
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={() => setShowOnlyMyTasks(false)}
+                />
+              </Badge>
+            )}
+            {searchQuery && (
+              <Badge variant="secondary" className="gap-1">
+                Search: "{searchQuery}"
+                <X
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={clearSearch}
+                />
+              </Badge>
+            )}
+            {filterStatus !== "all" && (
+              <Badge variant="secondary" className="gap-1">
+                Status: {filterStatus}
+                <X
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={() => setFilterStatus("all")}
+                />
+              </Badge>
+            )}
+            {selectedTagFilter.length > 0 && (
+              <Badge variant="secondary" className="gap-1">
+                Tags: {selectedTagFilter.length}
+                <X
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={() => setSelectedTagFilter([])}
+                />
+              </Badge>
+            )}
+            {sortOption !== "created-desc" && (
+              <Badge variant="secondary" className="gap-1">
+                Sort: {getSortLabel(sortOption)}
+                <X
+                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                  onClick={() => setSortOption("created-desc")}
+                />
+              </Badge>
+            )}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAllFilters}
+            className="gap-1"
+          >
+            <X className="h-3 w-3" />
+            Clear All
+          </Button>
         </div>
       )}
 
       {/* Tasks Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {sortedTasks.map((task) => {
-          const dueDateInfo = getDueDateInfo(task.dueDate, task.status)
-          
+          const dueDateInfo = getDueDateInfo(task.dueDate, task.status);
+
           return (
-            <Card key={task.id} className={!isOwner(task) ? 'opacity-75' : ''}>
+            <Card
+              key={task.id}
+              className={cn(
+                !isOwner(task) && "opacity-75",
+                bulkMode &&
+                  selectedTasks.includes(task.id) &&
+                  "ring-2 ring-primary"
+              )}
+            >
               <CardHeader>
-                <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-lg">{task.title}</CardTitle>
-                  <Badge className={getStatusColor(task.status)}>
-                    {task.status}
-                  </Badge>
-                </div>
-                <CardDescription>{task.description || 'No description'}</CardDescription>
-                
-                {/* Due Date Display */}
-                {task.dueDate && (
-                  <div className="pt-2">
-                    <Badge 
-                      variant="secondary" 
-                      className={dueDateInfo ? dueDateInfo.color : 'bg-gray-100 dark:bg-gray-800'}
-                    >
-                      {dueDateInfo?.icon && <AlertCircle className="h-3 w-3 mr-1" />}
-                      {!dueDateInfo?.icon && <Calendar className="h-3 w-3 mr-1" />}
-                      {dueDateInfo ? dueDateInfo.label : format(new Date(task.dueDate), 'MMM dd, yyyy')}
-                    </Badge>
-                  </div>
-                )}
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
-                  <UserAvatar 
-                    name={task.user.name}
-                    avatar={task.user.avatar}
-                    email={task.user.email}
-                    className="h-5 w-5"
-                  />
-                  <span>{task.user.name}</span>
-                  {isOwner(task) && (
-                    <Badge variant="outline" className="ml-2">You</Badge>
+                <div className="flex items-start gap-3">
+                  {/* Checkbox for bulk selection */}
+                  {bulkMode && isOwner(task) && (
+                    <Checkbox
+                      checked={selectedTasks.includes(task.id)}
+                      onCheckedChange={() => toggleTaskSelection(task.id)}
+                      className="mt-1"
+                    />
                   )}
+
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-2">
+                      <CardTitle className="text-lg">{task.title}</CardTitle>
+                      <Badge className={getStatusColor(task.status)}>
+                        {task.status}
+                      </Badge>
+                    </div>
+                    <CardDescription>
+                      {task.description || "No description"}
+                    </CardDescription>
+
+                    {/* Due Date Display */}
+                    {task.dueDate && (
+                      <div className="pt-2">
+                        <Badge
+                          variant="secondary"
+                          className={
+                            dueDateInfo
+                              ? dueDateInfo.color
+                              : "bg-gray-100 dark:bg-gray-800"
+                          }
+                        >
+                          {dueDateInfo?.icon && (
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                          )}
+                          {!dueDateInfo?.icon && (
+                            <Calendar className="h-3 w-3 mr-1" />
+                          )}
+                          {dueDateInfo
+                            ? dueDateInfo.label
+                            : format(new Date(task.dueDate), "MMM dd, yyyy")}
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Tags Display */}
+                    {task.tags && task.tags.length > 0 && (
+                      <div className="pt-2 flex flex-wrap gap-1">
+                        {task.tags.map((tag) => (
+                          <TagBadge
+                            key={tag.id}
+                            name={tag.name}
+                            color={tag.color}
+                            size="sm"
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
+                      <UserAvatar
+                        name={task.user.name}
+                        avatar={task.user.avatar}
+                        email={task.user.email}
+                        className="h-5 w-5"
+                      />
+                      <span>{task.user.name}</span>
+                      {isOwner(task) && (
+                        <Badge variant="outline" className="ml-2">
+                          You
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardHeader>
-              <CardFooter className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(task)}
-                  disabled={!isOwner(task)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(task.id)}
-                  disabled={!isOwner(task)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardFooter>
+
+              {!bulkMode && (
+                <CardFooter className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(task)}
+                    disabled={!isOwner(task)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(task.id)}
+                    disabled={!isOwner(task)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              )}
             </Card>
-          )
+          );
         })}
       </div>
 
@@ -536,8 +966,8 @@ export function TaskList() {
           <p className="text-lg font-medium mb-2">No tasks found</p>
           <p className="text-sm">
             {searchQuery && `No results for "${searchQuery}"`}
-            {searchQuery && filterStatus !== 'all' && ' with '}
-            {filterStatus !== 'all' && `status "${filterStatus}"`}
+            {searchQuery && filterStatus !== "all" && " with "}
+            {filterStatus !== "all" && `status "${filterStatus}"`}
           </p>
           <Button
             variant="outline"
@@ -562,6 +992,27 @@ export function TaskList() {
         task={editingTask}
         onSuccess={fetchTasks}
       />
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  )
+  );
 }

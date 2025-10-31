@@ -20,6 +20,7 @@ model User {
   tasks         Task[]
   sessions      Session[]
   accounts      Account[]
+  tags          Tag[]
 }
 
 model Session {
@@ -50,6 +51,20 @@ model Account {
   @@unique([providerId, accountId])
 }
 
+model Tag {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  color     String   @default("gray")
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     Task[]   @relation(fields: [taskIds], references: [id])
+  taskIds   String[] @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, userId])
+}
+
 model Task {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   title       String
@@ -60,4 +75,6 @@ model Task {
   updatedAt   DateTime  @updatedAt
   userId      String    @db.ObjectId
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        Tag[]     @relation(fields: [tagIds], references: [id])
+  tagIds      String[]  @db.ObjectId
 }
