@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import { useSession } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TaskForm } from './task-form'
-import { Pencil, Trash2, Plus, User, Filter } from 'lucide-react'
+import { Pencil, Trash2, Plus, User, Filter, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Task {
@@ -36,6 +37,7 @@ export function TaskList() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -108,19 +110,39 @@ export function TaskList() {
     return session?.user?.id === task.userId
   }
 
-  // Filter tasks based on selected status
+  // Filter and search tasks
   const filteredTasks = tasks.filter(task => {
-    if (filterStatus === 'all') return true
-    return task.status === filterStatus
+    // Filter by status
+    const statusMatch = filterStatus === 'all' || task.status === filterStatus
+    
+    // Filter by search query
+    const searchLower = searchQuery.toLowerCase().trim()
+    const searchMatch = searchQuery === '' || 
+      task.title.toLowerCase().includes(searchLower) ||
+      (task.description?.toLowerCase().includes(searchLower) ?? false) ||
+      task.user.name.toLowerCase().includes(searchLower)
+    
+    return statusMatch && searchMatch
   })
 
-  // Count tasks by status
+  // Count tasks by status (before search filter)
   const taskCounts = {
     all: tasks.length,
     pending: tasks.filter(t => t.status === 'pending').length,
     'in-progress': tasks.filter(t => t.status === 'in-progress').length,
     completed: tasks.filter(t => t.status === 'completed').length,
   }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+  }
+
+  const clearAllFilters = () => {
+    setSearchQuery('')
+    setFilterStatus('all')
+  }
+
+  const hasActiveFilters = searchQuery !== '' || filterStatus !== 'all'
 
   if (isPending || loading) {
     return <div className="text-center py-8">Loading...</div>
@@ -139,11 +161,47 @@ export function TaskList() {
         </Button>
       </div>
 
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search tasks by title, description, or creator..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSearch}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Filter Section */}
       <div className="mb-6 p-4 bg-white border rounded-lg">
-        <div className="flex items-center gap-2 mb-3">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Filter by Status</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filter by Status</span>
+          </div>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="text-xs h-7"
+            >
+              Clear All Filters
+            </Button>
+          )}
         </div>
         
         <ToggleGroup
@@ -178,6 +236,31 @@ export function TaskList() {
           </ToggleGroupItem>
         </ToggleGroup>
       </div>
+
+      {/* Active Filters Display */}
+      {hasActiveFilters && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <span>Showing {filteredTasks.length} of {tasks.length} tasks</span>
+          {searchQuery && (
+            <Badge variant="secondary" className="gap-1">
+              Search: "{searchQuery}"
+              <X 
+                className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                onClick={clearSearch}
+              />
+            </Badge>
+          )}
+          {filterStatus !== 'all' && (
+            <Badge variant="secondary" className="gap-1">
+              Status: {filterStatus}
+              <X 
+                className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                onClick={() => setFilterStatus('all')}
+              />
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Tasks Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -223,7 +306,21 @@ export function TaskList() {
 
       {filteredTasks.length === 0 && tasks.length > 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          No tasks found with status: <span className="font-semibold">{filterStatus}</span>
+          <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium mb-2">No tasks found</p>
+          <p className="text-sm">
+            {searchQuery && `No results for "${searchQuery}"`}
+            {searchQuery && filterStatus !== 'all' && ' with '}
+            {filterStatus !== 'all' && `status "${filterStatus}"`}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAllFilters}
+            className="mt-4"
+          >
+            Clear Filters
+          </Button>
         </div>
       )}
 
