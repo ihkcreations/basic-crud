@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, status } = body
+    const { title, description, status, dueDate } = body
 
     if (!title) {
       return NextResponse.json(
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
         title,
         description: description || '',
         status: status || 'pending',
+        dueDate: dueDate ? new Date(dueDate) : null,
         userId: session.user.id
       },
       include: {

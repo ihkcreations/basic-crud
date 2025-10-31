@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -73,7 +74,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
       <Tabs defaultValue="login" className="w-full max-w-md">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="login">Login</TabsTrigger>

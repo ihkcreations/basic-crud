@@ -60,7 +60,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { title, description, status } = body
+    const { title, description, status, dueDate } = body
 
     // Check if user owns the task
     const existingTask = await prisma.task.findUnique({
@@ -86,7 +86,8 @@ export async function PUT(
       data: {
         title,
         description,
-        status
+        status,
+        dueDate: dueDate ? new Date(dueDate) : null,
       },
       include: {
         user: {
