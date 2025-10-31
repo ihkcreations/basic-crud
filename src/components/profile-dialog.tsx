@@ -14,9 +14,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UserAvatar } from './user-avatar'
+import { UploadButton } from '@/lib/uploadthing'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Upload, Link as LinkIcon, X } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -41,6 +43,7 @@ export function ProfileDialog({ open, onOpenChange, onProfileUpdate }: ProfileDi
   const [name, setName] = useState('')
   const [avatar, setAvatar] = useState('')
   const [bio, setBio] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -107,9 +110,13 @@ export function ProfileDialog({ open, onOpenChange, onProfileUpdate }: ProfileDi
     }
   }
 
+  const removeAvatar = () => {
+    setAvatar('')
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         {fetching ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -125,17 +132,82 @@ export function ProfileDialog({ open, onOpenChange, onProfileUpdate }: ProfileDi
 
             <div className="grid gap-6 py-4">
               {/* Avatar Preview */}
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col items-center gap-4">
                 <UserAvatar 
                   name={name} 
                   avatar={avatar} 
                   email={profile?.email}
-                  className="h-20 w-20"
+                  className="h-24 w-24"
                 />
-                <div className="flex-1">
-                  <h3 className="font-medium">{name || 'Your Name'}</h3>
-                  <p className="text-sm text-muted-foreground">{profile?.email}</p>
-                </div>
+                {avatar && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={removeAvatar}
+                    className="gap-2"
+                  >
+                    <X className="h-3 w-3" />
+                    Remove Avatar
+                  </Button>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Avatar Upload Tabs */}
+              <div className="grid gap-3">
+                <Label>Avatar</Label>
+                <Tabs defaultValue="upload" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upload">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload
+                    </TabsTrigger>
+                    <TabsTrigger value="url">
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      URL
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="upload" className="space-y-3">
+                    <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-muted/50">
+                      <UploadButton
+                        endpoint="avatarUploader"
+                        onClientUploadComplete={(res) => {
+                          if (res && res[0]) {
+                            setAvatar(res[0].url)
+                            toast.success('Image uploaded successfully!')
+                            setUploadingImage(false)
+                          }
+                        }}
+                        onUploadError={(error: Error) => {
+                          toast.error(`Upload failed: ${error.message}`)
+                          setUploadingImage(false)
+                        }}
+                        onUploadBegin={() => {
+                          setUploadingImage(true)
+                          toast.info('Uploading image...')
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground text-center">
+                        Upload an image (max 4MB)
+                      </p>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="url" className="space-y-3">
+                    <Input
+                      type="url"
+                      value={avatar}
+                      onChange={(e) => setAvatar(e.target.value)}
+                      placeholder="https://example.com/avatar.jpg"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Or provide a direct URL to your avatar image
+                    </p>
+                  </TabsContent>
+                </Tabs>
               </div>
 
               <Separator />
@@ -150,21 +222,6 @@ export function ProfileDialog({ open, onOpenChange, onProfileUpdate }: ProfileDi
                   placeholder="Enter your name"
                   required
                 />
-              </div>
-
-              {/* Avatar URL Field */}
-              <div className="grid gap-2">
-                <Label htmlFor="avatar">Avatar URL (Optional)</Label>
-                <Input
-                  id="avatar"
-                  type="url"
-                  value={avatar}
-                  onChange={(e) => setAvatar(e.target.value)}
-                  placeholder="https://example.com/avatar.jpg"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Provide a URL to your avatar image, or leave empty for initials
-                </p>
               </div>
 
               {/* Bio Field */}
@@ -182,6 +239,20 @@ export function ProfileDialog({ open, onOpenChange, onProfileUpdate }: ProfileDi
                   {bio.length}/200 characters
                 </p>
               </div>
+
+              {/* Account Info */}
+              <div className="grid gap-2 p-3 bg-muted/50 rounded-lg">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium">{profile?.email}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Member since:</span>
+                  <span className="font-medium">
+                    {profile?.createdAt && new Date(profile.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <DialogFooter>
@@ -189,15 +260,20 @@ export function ProfileDialog({ open, onOpenChange, onProfileUpdate }: ProfileDi
                 type="button" 
                 variant="outline" 
                 onClick={() => onOpenChange(false)}
-                disabled={loading}
+                disabled={loading || uploadingImage}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading || uploadingImage}>
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Saving...
+                  </>
+                ) : uploadingImage ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
                   </>
                 ) : (
                   'Save Changes'
