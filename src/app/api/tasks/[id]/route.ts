@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { headers } from 'next/headers'
 
 // GET single task
 export async function GET(
@@ -10,7 +12,16 @@ export async function GET(
     const { id } = await params
     
     const task = await prisma.task.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
     })
 
     if (!task) {
@@ -24,21 +35,51 @@ export async function GET(
   } catch (error: any) {
     console.error('GET /api/tasks/[id] error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch task', message: error?.message },
+      { error: 'Failed to fetch task' },
       { status: 500 }
     )
   }
 }
 
-// UPDATE task
+// UPDATE task (only owner can update)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth.api.getSession({
+      headers: await headers()
+    })
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const body = await request.json()
     const { title, description, status } = body
+
+    // Check if user owns the task
+    const existingTask = await prisma.task.findUnique({
+      where: { id }
+    })
+
+    if (!existingTask) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      )
+    }
+
+    if (existingTask.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: 'You can only edit your own tasks' },
+        { status: 403 }
+      )
+    }
 
     const task = await prisma.task.update({
       where: { id },
@@ -46,6 +87,15 @@ export async function PUT(
         title,
         description,
         status
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
       }
     })
 
@@ -53,20 +103,50 @@ export async function PUT(
   } catch (error: any) {
     console.error('PUT /api/tasks/[id] error:', error)
     return NextResponse.json(
-      { error: 'Failed to update task', message: error?.message },
+      { error: 'Failed to update task' },
       { status: 500 }
     )
   }
 }
 
-// DELETE task
+// DELETE task (only owner can delete)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth.api.getSession({
+      headers: await headers()
+    })
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     
+    // Check if user owns the task
+    const existingTask = await prisma.task.findUnique({
+      where: { id }
+    })
+
+    if (!existingTask) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      )
+    }
+
+    if (existingTask.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: 'You can only delete your own tasks' },
+        { status: 403 }
+      )
+    }
+
     await prisma.task.delete({
       where: { id }
     })
@@ -75,7 +155,7 @@ export async function DELETE(
   } catch (error: any) {
     console.error('DELETE /api/tasks/[id] error:', error)
     return NextResponse.json(
-      { error: 'Failed to delete task', message: error?.message },
+      { error: 'Failed to delete task' },
       { status: 500 }
     )
   }

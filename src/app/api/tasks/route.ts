@@ -1,68 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { headers } from 'next/headers'
 
-// GET all tasks
+// GET all tasks (visible to all users)
 export async function GET() {
   try {
     const tasks = await prisma.task.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     })
     return NextResponse.json(tasks)
   } catch (error: any) {
     console.error('GET /api/tasks error:', error)
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch tasks', 
-        message: error?.message,
-        stack: error?.stack 
-      },
+      { error: 'Failed to fetch tasks' },
       { status: 500 }
     )
   }
 }
 
-// CREATE new task
+// CREATE new task (requires authentication)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    console.log('📥 Received data:', body)
+    const session = await auth.api.getSession({
+      headers: await headers()
+    })
     
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
     const { title, description, status } = body
 
     if (!title) {
-      console.log('❌ Title is missing')
       return NextResponse.json(
         { error: 'Title is required' },
         { status: 400 }
       )
     }
 
-    console.log('🔄 Creating task with Prisma...')
-    
     const task = await prisma.task.create({
       data: {
         title,
         description: description || '',
-        status: status || 'pending'
+        status: status || 'pending',
+        userId: session.user.id
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
       }
     })
 
-    console.log('✅ Task created successfully:', task)
     return NextResponse.json(task, { status: 201 })
-    
   } catch (error: any) {
-    console.error('❌ POST /api/tasks error:', error)
-    console.error('Error message:', error?.message)
-    console.error('Error stack:', error?.stack)
-    console.error('Error name:', error?.name)
-    
+    console.error('POST /api/tasks error:', error)
     return NextResponse.json(
-      { 
-        error: 'Failed to create task', 
-        message: error?.message,
-        name: error?.name,
-        details: JSON.stringify(error, null, 2)
-      },
+      { error: 'Failed to create task' },
       { status: 500 }
     )
   }
