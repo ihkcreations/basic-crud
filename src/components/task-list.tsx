@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TaskForm } from './task-form'
-import { Pencil, Trash2, Plus, User } from 'lucide-react'
+import { Pencil, Trash2, Plus, User, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Task {
@@ -25,6 +26,8 @@ interface Task {
   }
 }
 
+type FilterStatus = 'all' | 'pending' | 'in-progress' | 'completed'
+
 export function TaskList() {
   const { data: session, isPending } = useSession()
   const router = useRouter()
@@ -32,6 +35,7 @@ export function TaskList() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -104,6 +108,20 @@ export function TaskList() {
     return session?.user?.id === task.userId
   }
 
+  // Filter tasks based on selected status
+  const filteredTasks = tasks.filter(task => {
+    if (filterStatus === 'all') return true
+    return task.status === filterStatus
+  })
+
+  // Count tasks by status
+  const taskCounts = {
+    all: tasks.length,
+    pending: tasks.filter(t => t.status === 'pending').length,
+    'in-progress': tasks.filter(t => t.status === 'in-progress').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+  }
+
   if (isPending || loading) {
     return <div className="text-center py-8">Loading...</div>
   }
@@ -114,15 +132,56 @@ export function TaskList() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">Task Manager</h1>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> New Task
         </Button>
       </div>
 
+      {/* Filter Section */}
+      <div className="mb-6 p-4 bg-white border rounded-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filter by Status</span>
+        </div>
+        
+        <ToggleGroup
+          type="single"
+          value={filterStatus}
+          onValueChange={(value) => value && setFilterStatus(value as FilterStatus)}
+          className="justify-start flex-wrap"
+        >
+          <ToggleGroupItem value="all" aria-label="All tasks" className="gap-2">
+            All
+            <Badge variant="secondary" className="ml-1">
+              {taskCounts.all}
+            </Badge>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="pending" aria-label="Pending tasks" className="gap-2">
+            Pending
+            <Badge variant="secondary" className="ml-1 bg-yellow-100">
+              {taskCounts.pending}
+            </Badge>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="in-progress" aria-label="In progress tasks" className="gap-2">
+            In Progress
+            <Badge variant="secondary" className="ml-1 bg-blue-100">
+              {taskCounts['in-progress']}
+            </Badge>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="completed" aria-label="Completed tasks" className="gap-2">
+            Completed
+            <Badge variant="secondary" className="ml-1 bg-green-100">
+              {taskCounts.completed}
+            </Badge>
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      {/* Tasks Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {tasks.map((task) => (
+        {filteredTasks.map((task) => (
           <Card key={task.id} className={!isOwner(task) ? 'opacity-75' : ''}>
             <CardHeader>
               <div className="flex justify-between items-start mb-2">
@@ -161,6 +220,12 @@ export function TaskList() {
           </Card>
         ))}
       </div>
+
+      {filteredTasks.length === 0 && tasks.length > 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          No tasks found with status: <span className="font-semibold">{filterStatus}</span>
+        </div>
+      )}
 
       {tasks.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
