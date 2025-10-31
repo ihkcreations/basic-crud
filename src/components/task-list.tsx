@@ -32,6 +32,7 @@ import {
   Check
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { UserAvatar } from './user-avatar'
 
 interface Task {
   id: string
@@ -46,6 +47,7 @@ interface Task {
     id: string
     name: string
     email: string
+    avatar: string | null  // Add this line
   }
 }
 
@@ -493,7 +495,12 @@ export function TaskList() {
                 )}
                 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
-                  <User className="h-3 w-3" />
+                  <UserAvatar 
+                    name={task.user.name}
+                    avatar={task.user.avatar}
+                    email={task.user.email}
+                    className="h-5 w-5"
+                  />
                   <span>{task.user.name}</span>
                   {isOwner(task) && (
                     <Badge variant="outline" className="ml-2">You</Badge>
